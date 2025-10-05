@@ -1,23 +1,7 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'main.dart';
-
-class QuizQuestion {
-  final int num1;
-  final int num2;
-  final int correctAnswer;
-  final List<int> options;
-  final Operation operation;
-
-  QuizQuestion({
-    required this.num1,
-    required this.num2,
-    required this.correctAnswer,
-    required this.options,
-    required this.operation,
-  });
-}
+import 'question_manager.dart';
 
 class QuizScreen extends StatefulWidget {
   final Operation operation;
@@ -40,12 +24,13 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   static const int _totalQuestions = 10;
 
-  List<QuizQuestion> _questions = [];
+  List<Question> _questions = [];
   int _currentQuestionIndex = 0;
   int _score = 0;
   Timer? _timer;
   int _timeLeft = 0;
-  List<QuizQuestion> _incorrectlyAnsweredQuestions = [];
+  List<Question> _incorrectlyAnsweredQuestions = [];
+  QuestionManager? _questionManager;
   bool _quizInProgress = true; // Start quiz immediately
 
   @override
@@ -57,6 +42,15 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeAndStartQuiz();
+  }
+
+  Future<void> _initializeAndStartQuiz() async {
+    _questionManager = await QuestionManager.create(
+      operation: widget.operation,
+      selectedTables: widget.selectedTables,
+      additionSubtractionLimit: widget.additionSubtractionLimit,
+    );
     _startQuiz();
   }
 
@@ -72,64 +66,11 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void _generateQuestions() {
-    final random = Random();
-    final generatedQuestions = <QuizQuestion>[];
-    for (int i = 0; i < _totalQuestions; i++) {
-      int num1, num2;
-      if (widget.operation == Operation.multiplication) {
-        num1 =
-            widget.selectedTables[random.nextInt(widget.selectedTables.length)];
-        num2 = random.nextInt(8) + 2;
-      } else {
-        num1 = random.nextInt(widget.additionSubtractionLimit) + 1;
-        num2 = random.nextInt(widget.additionSubtractionLimit) + 1;
-      }
-
-      if (widget.operation == Operation.subtraction) {
-        if (num1 < num2) {
-          final temp = num1;
-          num1 = num2;
-          num2 = temp;
-        }
-      }
-
-      int correctAnswer;
-      switch (widget.operation) {
-        case Operation.addition:
-          correctAnswer = num1 + num2;
-          break;
-        case Operation.subtraction:
-          correctAnswer = num1 - num2;
-          break;
-        case Operation.multiplication:
-          correctAnswer = num1 * num2;
-          break;
-      }
-
-      final options = {correctAnswer}.toList();
-      while (options.length < 4) {
-        int wrongOption = correctAnswer + random.nextInt(19) - 9;
-        if (wrongOption != correctAnswer &&
-            !options.contains(wrongOption) &&
-            wrongOption >= 0) {
-          options.add(wrongOption);
-        }
-      }
-      options.shuffle();
-      generatedQuestions.add(
-        QuizQuestion(
-          num1: num1,
-          num2: num2,
-          correctAnswer: correctAnswer,
-          options: options,
-          operation: widget.operation,
-        ),
-      );
-    }
-    _questions = generatedQuestions;
+    _questions = _questionManager!.generateUniqueQuestions(_totalQuestions);
   }
 
   void _startQuiz() {
+    if (_questionManager == null) return;
     _generateQuestions();
     _currentQuestionIndex = 0;
     _score = 0;
@@ -157,7 +98,7 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void _answerQuestion(int selectedAnswer) {
-    final currentQuestion = _questions[_currentQuestionIndex];
+    final Question currentQuestion = _questions[_currentQuestionIndex];
     if (currentQuestion.correctAnswer == selectedAnswer) {
       _score++;
     } else {
@@ -278,6 +219,12 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _buildQuizView() {
+    if (_questions.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
     final currentQuestion = _questions[_currentQuestionIndex];
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,

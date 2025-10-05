@@ -63,8 +63,4 @@ class PerformanceTracker {
     });
     await prefs.setString(_performanceKey, json.encode(jsonMap));
   }
-
-  static String getQuestionKey(String operation, int num1, int num2) {
-    return '${operation}_${num1}x$num2';
-  }
 }
