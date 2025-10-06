@@ -141,18 +141,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Expanded(flex: 1, child: _buildTablesCard()),
+          const SizedBox(width: 24),
           Expanded(
-            flex: 2,
+            flex: 1,
             child: Column(
               children: [
-                _buildTablesCard(),
+                _buildQuizSettingsCard(),
                 const SizedBox(height: 20),
                 _buildAdditionSubtractionCard(),
               ],
             ),
           ),
-          const SizedBox(width: 24),
-          Expanded(flex: 1, child: _buildQuizSettingsCard()),
         ],
       ),
     );
