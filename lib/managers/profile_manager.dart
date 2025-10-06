@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:math/performance_model.dart';
-import 'package:math/profile_model.dart';
-import 'package:math/settings_model.dart';
+import 'package:math/models/performance_model.dart';
+import 'package:math/models/profile_model.dart';
+import 'package:math/models/settings_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileManager extends ChangeNotifier {

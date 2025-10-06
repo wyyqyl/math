@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'main.dart';
-import 'settings_model.dart';
+import 'package:math/main.dart';
+import 'package:math/models/settings_model.dart';
 
 class LearnScreen extends StatelessWidget {
   final Operation operation;

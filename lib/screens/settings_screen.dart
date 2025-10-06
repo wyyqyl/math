@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:math/profile_manager.dart';
-import 'settings_model.dart';
+import 'package:math/managers/profile_manager.dart';
+import 'package:math/models/settings_model.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

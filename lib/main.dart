@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'learn_screen.dart';
-import 'practice_screen.dart';
-import 'profile_manager.dart';
-import 'quiz_screen.dart';
-import 'settings_screen.dart';
-import 'settings_model.dart';
+import 'screens/learn_screen.dart';
+import 'screens/practice_screen.dart';
+import 'managers/profile_manager.dart';
+import 'screens/quiz_screen.dart';
+import 'screens/settings_screen.dart';
+import 'models/settings_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

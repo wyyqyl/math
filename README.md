@@ -1,16 +1,27 @@
-# math
+# Math App
 
-A new Flutter project.
+A fun and engaging Flutter application to help practice and improve math skills.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+*   **Learn:** Learn multiplication tables.
+*   **Practice:** Practice addition, subtraction, and multiplication with immediate feedback.
+*   **Quiz:** Test your skills with timed quizzes.
+*   **Profiles:** Create multiple profiles to track progress for different users.
+*   **Customizable Settings:** Adjust the difficulty by selecting specific multiplication tables, setting number limits for addition and subtraction, and configuring the quiz duration.
 
-A few resources to get you started if this is your first Flutter project:
+## Folder Structure
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+The `lib` folder is organized as follows:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+*   `main.dart`: The entry point of the application.
+*   `screens/`: Contains the UI for different screens of the app (e.g., `learn_screen.dart`, `practice_screen.dart`).
+*   `models/`: Contains the data models for the application (e.g., `profile_model.dart`, `settings_model.dart`).
+*   `managers/`: Contains the business logic for the application (e.g., `profile_manager.dart`, `question_manager.dart`).
+
+## How to Run
+
+1.  Clone this repository.
+2.  Make sure you have the Flutter SDK installed.
+3.  Run `flutter pub get` to install the dependencies.
+4.  Run `flutter run` to start the application.

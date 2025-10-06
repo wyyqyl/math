@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:math/main.dart';
-import 'package:math/performance_model.dart';
-import 'package:math/profile_manager.dart';
+import 'package:math/models/performance_model.dart';
+import 'package:math/managers/profile_manager.dart';
 
 class Question {
   final int num1;

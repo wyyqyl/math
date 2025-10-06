@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'main.dart';
-import 'question_manager.dart';
-import 'settings_model.dart';
+import 'package:math/main.dart';
+import 'package:math/managers/question_manager.dart';
+import 'package:math/models/settings_model.dart';
 
 class PracticeScreen extends StatefulWidget {
   final Operation operation;

@@ -1,4 +1,4 @@
-import 'package:math/settings_model.dart';
+import 'package:math/models/settings_model.dart';
 
 class Profile {
   String name;
