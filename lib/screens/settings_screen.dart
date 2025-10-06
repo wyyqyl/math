@@ -339,46 +339,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 120,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
-                childAspectRatio: 1.0,
-              ),
-              itemCount: 8,
-              itemBuilder: (context, index) {
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 4.0,
+              children: List<Widget>.generate(8, (index) {
                 final tableNumber = index + 2;
                 final isSelected = _selectedTables.contains(tableNumber);
-                return InkWell(
-                  onTap: () => _toggleTable(tableNumber),
-                  child: Container(
-                    decoration: BoxDecoration(
+                return RawChip(
+                  label: Text(
+                    '$tableNumber',
+                    style: TextStyle(
+                      fontSize: 20.0,
+                      fontWeight: FontWeight.bold,
                       color: isSelected
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(15.0),
-                      border: isSelected
-                          ? Border.all(color: Colors.orange.shade800, width: 4)
-                          : Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$tableNumber',
-                        style: TextStyle(
-                          fontSize: 40.0,
-                          fontWeight: FontWeight.bold,
-                          color: isSelected
-                              ? Colors.orange.shade800
-                              : Colors.grey.shade600,
-                        ),
-                      ),
+                          ? Colors.orange.shade800
+                          : Colors.grey.shade600,
                     ),
                   ),
+                  selected: isSelected,
+                  onSelected: (bool selected) {
+                    _toggleTable(tableNumber);
+                  },
+                  backgroundColor: Colors.white.withValues(alpha: 0.6),
+                  selectedColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15.0),
+                    side: BorderSide(
+                      color: isSelected
+                          ? Colors.orange.shade800
+                          : Colors.grey.shade300,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  showCheckmark: false,
                 );
-              },
+              }),
             ),
             const SizedBox(height: 16),
             Row(
