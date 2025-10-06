@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:math/main.dart';
 import 'package:math/performance_model.dart';
+import 'package:math/profile_manager.dart';
 
 class Question {
   final int num1;
@@ -94,7 +95,7 @@ class QuestionManager {
     required List<int> selectedTables,
     required int additionSubtractionLimit,
   }) async {
-    final performanceData = await PerformanceTracker.loadPerformanceData();
+    final performanceData = await ProfileManager().loadPerformanceData();
     return QuestionManager._(
       operation: operation,
       selectedTables: selectedTables,
@@ -302,6 +303,6 @@ class QuestionManager {
     }
 
     performanceData[questionKey] = performance;
-    await PerformanceTracker.savePerformanceData(performanceData);
+    await ProfileManager().savePerformanceData(performanceData);
   }
 }

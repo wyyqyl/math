@@ -2,17 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'question_manager.dart';
+import 'settings_model.dart';
 
 class PracticeScreen extends StatefulWidget {
   final Operation operation;
-  final List<int> selectedTables;
-  final int additionSubtractionLimit;
+  final AppSettings settings;
 
   const PracticeScreen({
     super.key,
-    required this.selectedTables,
     required this.operation,
-    required this.additionSubtractionLimit,
+    required this.settings,
   });
 
   @override
@@ -38,8 +37,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   Future<void> _loadPerformanceData() async {
     _questionManager = await QuestionManager.create(
       operation: widget.operation,
-      selectedTables: widget.selectedTables,
-      additionSubtractionLimit: widget.additionSubtractionLimit,
+      selectedTables: widget.settings.selectedTables,
+      additionSubtractionLimit: widget.settings.additionSubtractionLimit,
     );
     _generateQuestion();
   }

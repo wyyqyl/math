@@ -2,19 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'question_manager.dart';
+import 'settings_model.dart';
 
 class QuizScreen extends StatefulWidget {
   final Operation operation;
-  final List<int> selectedTables;
-  final int quizDuration;
-  final int additionSubtractionLimit;
+  final AppSettings settings;
 
   const QuizScreen({
     super.key,
-    required this.selectedTables,
-    required this.quizDuration,
     required this.operation,
-    required this.additionSubtractionLimit,
+    required this.settings,
   });
 
   @override
@@ -48,8 +45,8 @@ class _QuizScreenState extends State<QuizScreen> {
   Future<void> _initializeAndStartQuiz() async {
     _questionManager = await QuestionManager.create(
       operation: widget.operation,
-      selectedTables: widget.selectedTables,
-      additionSubtractionLimit: widget.additionSubtractionLimit,
+      selectedTables: widget.settings.selectedTables,
+      additionSubtractionLimit: widget.settings.additionSubtractionLimit,
     );
     _startQuiz();
   }
@@ -74,7 +71,7 @@ class _QuizScreenState extends State<QuizScreen> {
     _generateQuestions();
     _currentQuestionIndex = 0;
     _score = 0;
-    _timeLeft = widget.quizDuration;
+    _timeLeft = widget.settings.quizDuration;
     _quizInProgress = true;
     _incorrectlyAnsweredQuestions = [];
 

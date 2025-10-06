@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
+import 'settings_model.dart';
 
 class LearnScreen extends StatelessWidget {
   final Operation operation;
-  final List<int> selectedTables;
+  final AppSettings settings;
 
   const LearnScreen({
     super.key,
-    required this.selectedTables,
     required this.operation,
+    required this.settings,
   });
 
   String _getAppBarTitle() {
@@ -25,7 +26,7 @@ class LearnScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Create a sorted copy of the list to ensure tables are displayed in order.
-    final sortedTables = List<int>.from(selectedTables)..sort();
+    final sortedTables = List<int>.from(settings.selectedTables)..sort();
 
     return Scaffold(
       appBar: AppBar(

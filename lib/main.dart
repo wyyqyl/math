@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'learn_screen.dart';
 import 'practice_screen.dart';
+import 'profile_manager.dart';
 import 'quiz_screen.dart';
 import 'settings_screen.dart';
 import 'settings_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const MathApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ProfileManager().initialize();
+  runApp(MathApp());
 }
 
 class MathApp extends StatelessWidget {
@@ -15,14 +17,17 @@ class MathApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Math App',
-      theme: ThemeData(
-        primarySwatch: Colors.orange,
-        fontFamily: 'BubblegumSans',
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+    return ListenableBuilder(
+      listenable: ProfileManager(),
+      builder: (context, child) => MaterialApp(
+        title: 'Math App',
+        theme: ThemeData(
+          primarySwatch: Colors.orange,
+          fontFamily: 'BubblegumSans',
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
+        home: const MainMenuScreen(),
       ),
-      home: const MainMenuScreen(),
     );
   }
 }
@@ -50,62 +55,32 @@ class MainMenuScreen extends StatefulWidget {
 }
 
 class _MainMenuScreenState extends State<MainMenuScreen> {
-  List<int> _selectedTables = [];
-  int _quizDuration = 60;
-  int _additionSubtractionLimit = 10;
-  bool _isLoading = true;
+  final ProfileManager _profileManager = ProfileManager();
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    _profileManager.addListener(_onProfileChanged);
   }
 
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tables = prefs.getStringList('selectedTables');
-    final duration = prefs.getInt('quizDuration');
-    final limit = prefs.getInt('additionSubtractionLimit');
-
-    setState(() {
-      _selectedTables =
-          tables?.map(int.parse).toList() ?? [2, 3, 4, 5, 6, 7, 8, 9];
-      _quizDuration = duration ?? 60;
-      _additionSubtractionLimit = limit ?? 10;
-      _isLoading = false;
-    });
+  @override
+  void dispose() {
+    _profileManager.removeListener(_onProfileChanged);
+    super.dispose();
   }
 
-  Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      'selectedTables',
-      _selectedTables.map((e) => e.toString()).toList(),
-    );
-    await prefs.setInt('quizDuration', _quizDuration);
-    await prefs.setInt('additionSubtractionLimit', _additionSubtractionLimit);
+  void _onProfileChanged() {
+    setState(() {});
   }
 
   void _openSettings() async {
-    final newSettings = await Navigator.push<AppSettings>(
+    await Navigator.push<AppSettings>(
       context,
       MaterialPageRoute(
-        builder: (context) => SettingsScreen(
-          initialSelectedTables: _selectedTables,
-          initialQuizDuration: _quizDuration,
-          initialAdditionSubtractionLimit: _additionSubtractionLimit,
-        ),
+        builder: (context) => const SettingsScreen(),
       ),
     );
-
-    if (newSettings != null) {
-      setState(() {
-        _selectedTables = newSettings.selectedTables;
-        _quizDuration = newSettings.quizDuration;
-        _additionSubtractionLimit = newSettings.additionSubtractionLimit;
-      });
-      await _saveSettings();
-    }
+    // The ListenableBuilder/setState in _onProfileChanged will handle UI updates
   }
 
   @override
@@ -113,7 +88,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Math Genius!'),
-        backgroundColor: Colors.orange,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+                colors: [Colors.orange, Colors.orangeAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight),
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(20.0),
+          child: Text('Profile: ${_profileManager.currentProfile?.name ?? ''}',
+              style: const TextStyle(color: Colors.white, fontSize: 16)),
+        ),
         elevation: 0,
         actions: [
           IconButton(
@@ -130,7 +117,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             end: Alignment.bottomRight,
           ),
         ),
-        child: _isLoading
+        child: _profileManager.currentProfile == null
             ? const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               )
@@ -209,21 +196,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 
   void _navigateToScreen(Operation operation, String mode) {
     Widget page;
-    if (mode == 'Learn') {
-      page = LearnScreen(operation: operation, selectedTables: _selectedTables);
-    } else if (mode == 'Practice') {
-      page = PracticeScreen(
-        operation: operation,
-        selectedTables: _selectedTables,
-        additionSubtractionLimit: _additionSubtractionLimit,
-      );
-    } else {
-      page = QuizScreen(
-        operation: operation,
-        selectedTables: _selectedTables,
-        quizDuration: _quizDuration,
-        additionSubtractionLimit: _additionSubtractionLimit,
-      );
+    final settings = _profileManager.currentProfile!.settings;
+
+    switch (mode) {
+      case 'Learn':
+        page = LearnScreen(operation: operation, settings: settings);
+        break;
+      case 'Practice':
+        page = PracticeScreen(operation: operation, settings: settings);
+        break;
+      case 'Quiz':
+      default:
+        page = QuizScreen(operation: operation, settings: settings);
+        break;
     }
 
     Navigator.push(context, MaterialPageRoute(builder: (context) => page));

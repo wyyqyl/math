@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-
 class QuestionPerformance {
   int timesIncorrect;
   int appearanceCount;
@@ -33,34 +30,5 @@ class QuestionPerformance {
       "appearanceCount": appearanceCount,
       "totalTimeSpent": totalTimeSpent,
     };
-  }
-}
-
-class PerformanceTracker {
-  static const String _performanceKey = 'questionPerformance';
-
-  static Future<Map<String, QuestionPerformance>> loadPerformanceData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_performanceKey);
-    if (jsonString == null) {
-      return {};
-    }
-    final Map<String, dynamic> jsonMap = json.decode(jsonString);
-    return jsonMap.map((key, value) {
-      return MapEntry(key, QuestionPerformance.fromJson(value));
-    });
-  }
-
-  static Future<void> savePerformanceData(
-    Map<String, QuestionPerformance> performanceData,
-  ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final Map<String, QuestionPerformance> filteredData = Map.from(
-      performanceData,
-    )..removeWhere((key, value) => value.appearanceCount == 0);
-    final jsonMap = filteredData.map((key, value) {
-      return MapEntry(key, value.toJson());
-    });
-    await prefs.setString(_performanceKey, json.encode(jsonMap));
   }
 }
