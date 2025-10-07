@@ -204,75 +204,42 @@ class QuestionManager {
         .where((qKey) => !excludeKeys.contains(qKey))
         .toList();
 
+    // Sort available questions by priority score, descending.
+    // Questions the user knows least will be at the beginning.
+    availableQuestions.sort((a, b) {
+      final scoreA = performanceData[a]?.priorityScore ?? 1.0;
+      final scoreB = performanceData[b]?.priorityScore ?? 1.0;
+      return scoreB.compareTo(scoreA);
+    });
+
+    List<String> selectedQuestionKeys = [];
+
+    if (availableQuestions.isEmpty) {
+      return [];
+    }
+
     if (count > availableQuestions.length) {
-      // Not enough unique questions available.
-      // Add all unique questions, then add the highest-weighted ones to fill the gap.
-      final List<Question> generatedQuestions = [];
+      // If more questions are requested than available, add all available questions.
+      selectedQuestionKeys.addAll(availableQuestions);
 
-      // 1. Add all unique questions.
-      for (final qKey in availableQuestions) {
-        generatedQuestions.add(_createQuestionFromKey(qKey));
+      // For the remainder, cycle through the sorted list from the beginning.
+      final int remaining = count - availableQuestions.length;
+      for (int i = 0; i < remaining; i++) {
+        selectedQuestionKeys
+            .add(availableQuestions[i % availableQuestions.length]);
       }
-
-      // 2. Find the highest-weighted questions to add as duplicates.
-      final int remainingCount = count - availableQuestions.length;
-      if (remainingCount > 0 && availableQuestions.isNotEmpty) {
-        final sortedByWeight = List<String>.from(availableQuestions);
-        sortedByWeight.sort(
-          (a, b) => (performanceData[b]?.priorityScore ?? 1.0).compareTo(
-            performanceData[a]?.priorityScore ?? 1.0,
-          ),
-        );
-
-        for (int i = 0; i < remainingCount; i++) {
-          // Cycle through the sorted list if more duplicates are needed than available questions
-          final qKey = sortedByWeight[i % sortedByWeight.length];
-          generatedQuestions.add(_createQuestionFromKey(qKey));
-        }
-      }
-
-      // 3. Randomly sort the final list.
-      generatedQuestions.shuffle();
-      return generatedQuestions;
+    } else {
+      // Take the top 'count' questions that the user knows least.
+      selectedQuestionKeys = availableQuestions.sublist(0, count);
     }
 
-    double totalWeight = 0;
-    Map<String, double> weights = {};
-    for (String qKey in availableQuestions) {
-      double weight = performanceData[qKey]?.priorityScore ?? 1.0;
-      weights[qKey] = weight;
-      totalWeight += weight;
-    }
+    // Shuffle the final list to ensure random order.
+    selectedQuestionKeys.shuffle();
 
-    final random = Random();
-    final List<Question> generatedQuestions = [];
-    final Set<String> selectedKeys = {};
-
-    while (generatedQuestions.length < count) {
-      double randomWeight = random.nextDouble() * totalWeight;
-      String? selectedQuestionKey;
-
-      for (String qKey in availableQuestions) {
-        if (selectedKeys.contains(qKey)) continue;
-
-        if (randomWeight < weights[qKey]!) {
-          selectedQuestionKey = qKey;
-          break;
-        }
-        randomWeight -= weights[qKey]!;
-      }
-
-      // Fallback in case of floating point inaccuracies
-      selectedQuestionKey ??= availableQuestions.lastWhere(
-        (q) => !selectedKeys.contains(q),
-      );
-
-      selectedKeys.add(selectedQuestionKey);
-      totalWeight -= weights[selectedQuestionKey]!;
-
-      generatedQuestions.add(_createQuestionFromKey(selectedQuestionKey));
-    }
-    return generatedQuestions;
+    // Create Question objects from the selected keys.
+    return selectedQuestionKeys
+        .map((key) => _createQuestionFromKey(key))
+        .toList();
   }
 
   Question _createQuestionFromKey(String questionKey) {
