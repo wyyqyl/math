@@ -18,17 +18,13 @@ class QuestionPerformance {
 
   factory QuestionPerformance.fromJson(Map<String, dynamic> json) {
     return QuestionPerformance(
-      timesIncorrect: json["timesIncorrect"] ?? 0,
-      appearanceCount: json["appearanceCount"] ?? 0,
-      totalTimeSpent: json["totalTimeSpent"] ?? 0,
+      timesIncorrect: json["w"] ?? 0,
+      appearanceCount: json["c"] ?? 0,
+      totalTimeSpent: json["t"] ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      "timesIncorrect": timesIncorrect,
-      "appearanceCount": appearanceCount,
-      "totalTimeSpent": totalTimeSpent,
-    };
+    return {"w": timesIncorrect, "c": appearanceCount, "t": totalTimeSpent};
   }
 }

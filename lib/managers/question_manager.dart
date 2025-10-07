@@ -37,8 +37,8 @@ class QuestionManager {
     );
   }
 
-  static String getQuestionKey(String operation, int num1, int num2) {
-    return '${operation}_${num1}x$num2';
+  static String getQuestionKey(Operation operation, int num1, int num2) {
+    return '$num1${operation.symbol}$num2';
   }
 
   static List<String> _generatePossibleQuestions(
@@ -47,17 +47,16 @@ class QuestionManager {
     int additionSubtractionLimit,
   ) {
     List<String> questions = [];
-    String opKey = operation.toString().split('.').last;
     if (operation == Operation.multiplication) {
       for (int table in selectedTables) {
         for (int i = 2; i <= 9; i++) {
-          questions.add(getQuestionKey(opKey, table, i));
+          questions.add(getQuestionKey(operation, table, i));
         }
       }
     } else {
       for (int i = 1; i <= additionSubtractionLimit; i++) {
         for (int j = 1; j <= additionSubtractionLimit; j++) {
-          questions.add(getQuestionKey(opKey, i, j));
+          questions.add(getQuestionKey(operation, i, j));
         }
       }
     }
@@ -176,7 +175,8 @@ class QuestionManager {
   }
 
   Question _createQuestionFromKey(String questionKey) {
-    List<String> parts = questionKey.split('_').last.split('x');
+    final symbol = operation.symbol;
+    final parts = questionKey.split(symbol);
     int num1 = int.parse(parts[0]);
     int num2 = int.parse(parts[1]);
 
