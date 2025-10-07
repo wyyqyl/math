@@ -53,9 +53,15 @@ class QuestionManager {
           questions.add(getQuestionKey(operation, table, i));
         }
       }
-    } else {
+    } else if (operation == Operation.addition) {
       for (int i = 1; i <= additionSubtractionLimit; i++) {
         for (int j = 1; j <= additionSubtractionLimit; j++) {
+          questions.add(getQuestionKey(operation, i, j));
+        }
+      }
+    } else {
+      for (int i = 1; i <= additionSubtractionLimit; i++) {
+        for (int j = 1; j <= i; j++) {
           questions.add(getQuestionKey(operation, i, j));
         }
       }
@@ -95,7 +101,7 @@ class QuestionManager {
     }
 
     if (_possibleQuestions.length == 1) {
-      return _createQuestionFromKey(_possibleQuestions.first);
+      return Question.fromKey(_possibleQuestions.first);
     }
 
     _recalculatePriorityScores();
@@ -123,7 +129,7 @@ class QuestionManager {
 
     lastQuestionKey = selectedQuestionKey;
 
-    return _createQuestionFromKey(selectedQuestionKey);
+    return Question.fromKey(selectedQuestionKey);
   }
 
   List<Question> generateUniqueQuestions(
@@ -157,8 +163,9 @@ class QuestionManager {
       // For the remainder, cycle through the sorted list from the beginning.
       final int remaining = count - availableQuestions.length;
       for (int i = 0; i < remaining; i++) {
-        selectedQuestionKeys
-            .add(availableQuestions[i % availableQuestions.length]);
+        selectedQuestionKeys.add(
+          availableQuestions[i % availableQuestions.length],
+        );
       }
     } else {
       // Take the top 'count' questions that the user knows least.
@@ -169,23 +176,7 @@ class QuestionManager {
     selectedQuestionKeys.shuffle();
 
     // Create Question objects from the selected keys.
-    return selectedQuestionKeys
-        .map((key) => _createQuestionFromKey(key))
-        .toList();
-  }
-
-  Question _createQuestionFromKey(String questionKey) {
-    final symbol = operation.symbol;
-    final parts = questionKey.split(symbol);
-    int num1 = int.parse(parts[0]);
-    int num2 = int.parse(parts[1]);
-
-    return Question.fromNumbers(
-      num1: num1,
-      num2: num2,
-      operation: operation,
-      questionKey: questionKey,
-    );
+    return selectedQuestionKeys.map((key) => Question.fromKey(key)).toList();
   }
 
   Future<void> updateQuestionPerformance({

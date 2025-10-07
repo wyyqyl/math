@@ -18,21 +18,25 @@ class Question {
     required this.questionKey,
   });
 
-  factory Question.fromNumbers({
-    required int num1,
-    required int num2,
-    required Operation operation,
-    required String questionKey,
-  }) {
-    int n1 = num1;
-    int n2 = num2;
-    if (operation == Operation.subtraction) {
-      if (n1 < n2) {
-        final temp = n1;
-        n1 = n2;
-        n2 = temp;
+  factory Question.fromKey(String key) {
+    Operation? operation;
+    String? symbol;
+
+    for (var op in Operation.values) {
+      if (key.contains(op.symbol)) {
+        operation = op;
+        symbol = op.symbol;
+        break;
       }
     }
+
+    if (operation == null || symbol == null) {
+      throw Exception('Invalid question key: $key');
+    }
+
+    final parts = key.split(symbol);
+    int n1 = int.parse(parts[0]);
+    int n2 = int.parse(parts[1]);
 
     int correctAnswer;
     switch (operation) {
@@ -58,13 +62,14 @@ class Question {
       }
     }
     options.shuffle();
+
     return Question(
       num1: n1,
       num2: n2,
       correctAnswer: correctAnswer,
       options: options,
       operation: operation,
-      questionKey: questionKey,
+      questionKey: key,
     );
   }
 }
