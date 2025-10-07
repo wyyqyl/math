@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:math/main.dart';
 import 'package:math/managers/question_manager.dart';
+import 'package:math/models/operation_model.dart';
+import 'package:math/models/question_model.dart';
 import 'package:math/models/settings_model.dart';
 
 class PracticeScreen extends StatefulWidget {
@@ -60,14 +61,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   }
 
   String _getAppBarTitle() {
-    switch (widget.operation) {
-      case Operation.addition:
-        return 'Practice Addition';
-      case Operation.subtraction:
-        return 'Practice Subtraction';
-      case Operation.multiplication:
-        return 'Practice Multiplication';
-    }
+    return 'Practice ${widget.operation.name}';
   }
 
   void _generateQuestion() {

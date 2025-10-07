@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:math/main.dart';
+import 'package:math/models/operation_model.dart';
 import 'package:math/models/settings_model.dart';
 
 class LearnScreen extends StatelessWidget {
@@ -13,14 +13,7 @@ class LearnScreen extends StatelessWidget {
   });
 
   String _getAppBarTitle() {
-    switch (operation) {
-      case Operation.addition:
-        return 'Learn Addition';
-      case Operation.subtraction:
-        return 'Learn Subtraction';
-      case Operation.multiplication:
-        return 'Learn Multiplication';
-    }
+    return 'Learn ${operation.name}';
   }
 
   @override

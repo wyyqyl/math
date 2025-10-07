@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:math/main.dart';
 import 'package:math/managers/question_manager.dart';
+import 'package:math/models/operation_model.dart';
+import 'package:math/models/question_model.dart';
 import 'package:math/models/settings_model.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -52,14 +53,7 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   String _getAppBarTitle() {
-    switch (widget.operation) {
-      case Operation.addition:
-        return 'Addition Quiz';
-      case Operation.subtraction:
-        return 'Subtraction Quiz';
-      case Operation.multiplication:
-        return 'Multiplication Quiz';
-    }
+    return '${widget.operation.name} Quiz';
   }
 
   void _generateQuestions() {

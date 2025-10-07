@@ -5,6 +5,8 @@ import 'managers/profile_manager.dart';
 import 'screens/quiz_screen.dart';
 import 'screens/settings_screen.dart';
 import 'models/settings_model.dart';
+import 'models/operation_model.dart';
+import 'models/mode_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,21 +31,6 @@ class MathApp extends StatelessWidget {
         home: const MainMenuScreen(),
       ),
     );
-  }
-}
-
-enum Operation { addition, subtraction, multiplication }
-
-extension OperationExtension on Operation {
-  String get symbol {
-    switch (this) {
-      case Operation.addition:
-        return '+';
-      case Operation.subtraction:
-        return '-';
-      case Operation.multiplication:
-        return 'x';
-    }
   }
 }
 
@@ -76,9 +63,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   void _openSettings() async {
     await Navigator.push<AppSettings>(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SettingsScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
     );
     // The ListenableBuilder/setState in _onProfileChanged will handle UI updates
   }
@@ -91,15 +76,18 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-                colors: [Colors.orange, Colors.orangeAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight),
+              colors: [Colors.orange, Colors.orangeAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(20.0),
-          child: Text('Profile: ${_profileManager.currentProfile?.name ?? ''}',
-              style: const TextStyle(color: Colors.white, fontSize: 16)),
+          child: Text(
+            'Profile: ${_profileManager.currentProfile?.name ?? ''}',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
         ),
         elevation: 0,
         actions: [
@@ -125,22 +113,22 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 padding: const EdgeInsets.all(8.0),
                 children: <Widget>[
                   _buildOperationCard(
-                    title: 'Addition',
+                    title: Operation.addition.name,
                     icon: Icons.add,
                     operation: Operation.addition,
-                    modes: ['Practice', 'Quiz'],
+                    modes: [Mode.practice, Mode.quiz],
                   ),
                   _buildOperationCard(
-                    title: 'Subtraction',
+                    title: Operation.subtraction.name,
                     icon: Icons.remove,
                     operation: Operation.subtraction,
-                    modes: ['Practice', 'Quiz'],
+                    modes: [Mode.practice, Mode.quiz],
                   ),
                   _buildOperationCard(
-                    title: 'Multiplication',
+                    title: Operation.multiplication.name,
                     icon: Icons.close,
                     operation: Operation.multiplication,
-                    modes: ['Learn', 'Practice', 'Quiz'],
+                    modes: [Mode.learn, Mode.practice, Mode.quiz],
                   ),
                 ],
               ),
@@ -152,7 +140,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     required String title,
     required IconData icon,
     required Operation operation,
-    required List<String> modes,
+    required List<Mode> modes,
   }) {
     return Card(
       elevation: 4,
@@ -184,7 +172,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                   onPressed: () {
                     _navigateToScreen(operation, mode);
                   },
-                  child: Text(mode),
+                  child: Text(mode.name),
                 );
               }).toList(),
             ),
@@ -194,19 +182,18 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     );
   }
 
-  void _navigateToScreen(Operation operation, String mode) {
+  void _navigateToScreen(Operation operation, Mode mode) {
     Widget page;
     final settings = _profileManager.currentProfile!.settings;
 
     switch (mode) {
-      case 'Learn':
+      case Mode.learn:
         page = LearnScreen(operation: operation, settings: settings);
         break;
-      case 'Practice':
+      case Mode.practice:
         page = PracticeScreen(operation: operation, settings: settings);
         break;
-      case 'Quiz':
-      default:
+      case Mode.quiz:
         page = QuizScreen(operation: operation, settings: settings);
         break;
     }
