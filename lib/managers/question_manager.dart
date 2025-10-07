@@ -191,7 +191,7 @@ class QuestionManager {
   Future<void> updateQuestionPerformance({
     required String questionKey,
     required bool isCorrect,
-    required int timeTaken,
+    required double timeTaken,
   }) async {
     QuestionPerformance performance =
         performanceData[questionKey] ?? QuestionPerformance();

@@ -26,7 +26,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   int _correctAnswers = 0;
   int _totalAnswers = 0;
   Timer? _timer;
-  int _timeUsed = 0;
+  double _timeUsed = 0.0;
+  int _timeToDisplay = 0;
   QuestionManager? _questionManager;
 
   @override
@@ -53,10 +54,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
   void _startTimer() {
     _timer?.cancel();
     _timeUsed = 0;
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _timeUsed++;
-      });
+    _timeToDisplay = 0;
+    int counter = 0;
+    _timer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
+      _timeUsed += 0.01;
+      counter++;
+      if (counter == 100) {
+        counter = 0;
+        setState(() {
+          _timeToDisplay = _timeUsed.toInt();
+        });
+      }
     });
   }
 
@@ -155,7 +163,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 style: const TextStyle(fontSize: 24, color: Colors.white),
               ),
               Text(
-                'Time: $_timeUsed seconds',
+                'Time: $_timeToDisplay seconds',
                 style: const TextStyle(fontSize: 24, color: Colors.white),
               ),
             ],
