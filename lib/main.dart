@@ -7,11 +7,12 @@ import 'screens/settings_screen.dart';
 import 'models/settings_model.dart';
 import 'models/operation_model.dart';
 import 'models/mode_model.dart';
+import 'screens/stats_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ProfileManager().initialize();
-  runApp(MathApp());
+  runApp(const MathApp());
 }
 
 class MathApp extends StatelessWidget {
@@ -65,7 +66,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       context,
       MaterialPageRoute(builder: (context) => const SettingsScreen()),
     );
-    // The ListenableBuilder/setState in _onProfileChanged will handle UI updates
+  }
+
+  void _openStats() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const StatsScreen()),
+    );
   }
 
   @override
@@ -91,6 +98,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         ),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bar_chart, color: Colors.white, size: 30),
+            onPressed: _openStats,
+          ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.white, size: 30),
             onPressed: _openSettings,
