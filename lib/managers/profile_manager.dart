@@ -37,6 +37,7 @@ class ProfileManager extends ChangeNotifier {
     final tables = _prefs.getStringList('profile_${name}_selectedTables');
     final duration = _prefs.getInt('profile_${name}_quizDuration');
     final limit = _prefs.getInt('profile_${name}_additionSubtractionLimit');
+    final advanced = _prefs.getBool('profile_${name}_advancedMode');
 
     _currentProfile = Profile(
       name: name,
@@ -45,6 +46,7 @@ class ProfileManager extends ChangeNotifier {
             tables?.map(int.parse).toList() ?? [2, 3, 4, 5, 6, 7, 8, 9],
         quizDuration: duration ?? 60,
         additionSubtractionLimit: limit ?? 10,
+        advancedMode: advanced ?? false,
       ),
     );
     _currentProfileName = name;
@@ -64,6 +66,7 @@ class ProfileManager extends ChangeNotifier {
       selectedTables: [2, 3, 4, 5, 6, 7, 8, 9],
       quizDuration: 60,
       additionSubtractionLimit: 10,
+      advancedMode: false,
     );
     await updateProfileSettings(name, defaultSettings);
 
@@ -90,6 +93,7 @@ class ProfileManager extends ChangeNotifier {
     await _prefs.remove('profile_${name}_selectedTables');
     await _prefs.remove('profile_${name}_quizDuration');
     await _prefs.remove('profile_${name}_additionSubtractionLimit');
+    await _prefs.remove('profile_${name}_advancedMode');
     await _prefs.remove('profile_${name}_performanceData');
 
     if (_currentProfileName == name) {
@@ -108,6 +112,7 @@ class ProfileManager extends ChangeNotifier {
     final tables = _prefs.getStringList('profile_${oldName}_selectedTables');
     final duration = _prefs.getInt('profile_${oldName}_quizDuration');
     final limit = _prefs.getInt('profile_${oldName}_additionSubtractionLimit');
+    final advanced = _prefs.getBool('profile_${oldName}_advancedMode');
     final performance = _prefs.getString('profile_${oldName}_performanceData');
 
     if (tables != null) {
@@ -119,6 +124,9 @@ class ProfileManager extends ChangeNotifier {
     if (limit != null) {
       await _prefs.setInt('profile_${newName}_additionSubtractionLimit', limit);
     }
+    if (advanced != null) {
+      await _prefs.setBool('profile_${newName}_advancedMode', advanced);
+    }
     if (performance != null) {
       await _prefs.setString('profile_${newName}_performanceData', performance);
     }
@@ -127,6 +135,7 @@ class ProfileManager extends ChangeNotifier {
     await _prefs.remove('profile_${oldName}_selectedTables');
     await _prefs.remove('profile_${oldName}_quizDuration');
     await _prefs.remove('profile_${oldName}_additionSubtractionLimit');
+    await _prefs.remove('profile_${oldName}_advancedMode');
     await _prefs.remove('profile_${oldName}_performanceData');
 
     _profileNames[index] = newName;
@@ -149,6 +158,7 @@ class ProfileManager extends ChangeNotifier {
       'profile_${name}_additionSubtractionLimit',
       settings.additionSubtractionLimit,
     );
+    await _prefs.setBool('profile_${name}_advancedMode', settings.advancedMode);
     if (_currentProfileName == name) {
       await _loadProfile(name);
     }
