@@ -1,0 +1,88 @@
+name: Deploy Flutter Web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+
+# Cancels previous runs if a new commit is pushed (saves CI minutes)
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_DIR: build/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Installing Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true # Caches the Flutter SDK itself
+
+      # Caching dependencies to speed up `flutter pub get`
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool/build
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Optional: Uncomment if you want strict quality control
+      # - name: Analyze & Test
+      #   run: |
+      #     flutter analyze
+      #     flutter test
+
+      # Smartly determines the base href for GitHub Pages
+      - name: Resolve Base HREF
+        id: base_href
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          if [[ "$REPO_NAME" == *.github.io ]]; then
+            echo "href=/" >> $GITHUB_OUTPUT
+          else
+            echo "href=/${REPO_NAME}/" >> $GITHUB_OUTPUT
+          fi
+
+      # Build the app using the calculated href
+      - name: Build Web
+        run: flutter build web --release --base-href "${{ steps.base_href.outputs.href }}"
+
+      # Setup Pages (Needed for proper artifact upload)
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # Upload the build folder
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.BUILD_DIR }}
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
