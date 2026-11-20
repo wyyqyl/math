@@ -12,6 +12,12 @@ extension OperationExtension on Operation {
     }
   }
 
+  String get glyph => switch (this) {
+    Operation.addition => '+',
+    Operation.subtraction => '−',
+    Operation.multiplication => '×',
+  };
+
   String get name {
     switch (this) {
       case Operation.addition:

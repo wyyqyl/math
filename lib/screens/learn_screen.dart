@@ -1,158 +1,178 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:math/models/operation_model.dart';
 import 'package:math/models/settings_model.dart';
 
-class LearnScreen extends StatelessWidget {
-  final Operation operation;
+import 'practice_screen.dart';
+import 'widgets/multiplication_array.dart';
+import 'widgets/study_layout.dart';
+
+class LearnScreen extends StatefulWidget {
+  const LearnScreen({super.key, required this.settings});
+
   final AppSettings settings;
 
-  const LearnScreen({
-    super.key,
-    required this.operation,
-    required this.settings,
-  });
+  @override
+  State<LearnScreen> createState() => _LearnScreenState();
+}
 
-  String _getAppBarTitle() {
-    return 'Learn ${operation.name}';
-  }
+class _LearnScreenState extends State<LearnScreen> {
+  late int _table = widget.settings.selectedTables.reduce(
+    (a, b) => a < b ? a : b,
+  );
+  int _factor = 1;
 
   @override
   Widget build(BuildContext context) {
-    // Create a sorted copy of the list to ensure tables are displayed in order.
-    final sortedTables = List<int>.from(settings.selectedTables)..sort();
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_getAppBarTitle()),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF11998e), Color(0xFF38ef7d)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF38ef7d), Color(0xFF11998e)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: sortedTables.length,
-          itemBuilder: (context, index) {
-            final tableNumber = sortedTables[index];
-            return Card(
-              elevation: 6,
-              margin: const EdgeInsets.symmetric(vertical: 10.0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.white,
-                      const Color(0xFF38ef7d).withValues(alpha: 0.1),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+      appBar: AppBar(title: const Text('Times tables')),
+      body: StudyPage(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            StudyCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pick a table',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: ExpansionTile(
-                  initiallyExpanded: index == 0,
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF11998e).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.book_rounded,
-                      size: 30,
-                      color: const Color(0xFF11998e),
-                    ),
-                  ),
-                  title: Text(
-                    'Table of $tableNumber',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF11998e),
-                    ),
-                  ),
-                  children: List.generate(9, (i) {
-                    final multiplier = i + 1;
-                    int result;
-                    switch (operation) {
-                      case Operation.addition:
-                        result = tableNumber + multiplier;
-                        break;
-                      case Operation.subtraction:
-                        result = tableNumber - multiplier;
-                        break;
-                      case Operation.multiplication:
-                        result = tableNumber * multiplier;
-                        break;
-                    }
-                    return Container(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: i.isEven
-                            ? const Color(0xFF38ef7d).withValues(alpha: 0.1)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        leading: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF11998e),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${i + 1}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (
+                        var table = 1;
+                        table <= AppSettings.maxTable;
+                        table++
+                      )
+                        Semantics(
+                          selected: table == _table,
+                          label: '$table times table',
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(52, 52),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
                               ),
+                              backgroundColor: table == _table
+                                  ? studyTint
+                                  : Colors.white,
+                            ),
+                            onPressed: () => setState(() => _table = table),
+                            child: Text('$table'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PracticeScreen(
+                    operation: Operation.multiplication,
+                    settings: widget.settings,
+                    table: _table,
+                  ),
+                ),
+              ),
+              child: Text('Practice the $_table times table'),
+            ),
+            const SizedBox(height: 12),
+            StudyColumns(
+              first: StudyCard(
+                color: studyTint,
+                child: Column(
+                  children: [
+                    Semantics(
+                      liveRegion: true,
+                      child: Equation(
+                        text: '$_table × $_factor = ${_table * _factor}',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    MultiplicationArray(rows: _table, columns: _factor),
+                    const SizedBox(height: 8),
+                    if (_table > 1)
+                      Text(
+                        List.filled(_table, '$_factor').join(' + '),
+                        textAlign: TextAlign.center,
+                      ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        IconButton.filledTonal(
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(52, 52),
+                          ),
+                          tooltip: 'Previous fact',
+                          onPressed: _factor > 1
+                              ? () => setState(() => _factor--)
+                              : null,
+                          icon: const Icon(Icons.chevron_left),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Fact $_factor of 12',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        IconButton.filledTonal(
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(52, 52),
+                          ),
+                          tooltip: 'Next fact',
+                          onPressed: _factor < AppSettings.maxTable
+                              ? () => setState(() => _factor++)
+                              : null,
+                          icon: const Icon(Icons.chevron_right),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              second: StudyCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Jump to a fact',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (
+                          var factor = 1;
+                          factor <= AppSettings.maxTable;
+                          factor++
+                        )
+                          Semantics(
+                            selected: factor == _factor,
+                            child: OutlinedButton(
+                              onPressed: () => setState(() => _factor = factor),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                              ),
+                              child: Text('× $factor'),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          '$tableNumber ${operation.symbol} $multiplier = $result',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 22.0,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF11998e),
-                          ),
-                        ),
-                        trailing: const Icon(
-                          Icons.check_circle,
-                          color: Color(0xFF38ef7d),
-                          size: 28,
-                        ),
-                      ),
-                    );
-                  }),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );

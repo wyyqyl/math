@@ -1,13 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'managers/profile_manager.dart';
+import 'models/operation_model.dart';
 import 'screens/learn_screen.dart';
 import 'screens/practice_screen.dart';
-import 'managers/profile_manager.dart';
 import 'screens/quiz_screen.dart';
 import 'screens/settings_screen.dart';
-import 'models/settings_model.dart';
-import 'models/operation_model.dart';
-import 'models/mode_model.dart';
 import 'screens/stats_screen.dart';
+import 'screens/widgets/study_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,230 +20,320 @@ class MathApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: ProfileManager(),
-      builder: (context, child) => MaterialApp(
-        title: 'Math Genius!',
-        theme: ThemeData(
-          primarySwatch: Colors.purple,
-          fontFamily: 'BubblegumSans',
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        ),
-        home: const MainMenuScreen(),
+    final base = ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: studyBlue,
+        primary: studyBlue,
+        surface: studyPaper,
+        secondaryContainer: studyTint,
+        onSecondaryContainer: studyInk,
       ),
+      scaffoldBackgroundColor: studyPaper,
+      visualDensity: VisualDensity.standard,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: studyPaper,
+        foregroundColor: studyInk,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 52),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(48, 52),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+      ),
+    );
+    return MaterialApp(
+      title: 'Math Genius!',
+      debugShowCheckedModeBanner: false,
+      theme: base.copyWith(
+        textTheme: base.textTheme.copyWith(
+          displayMedium: base.textTheme.displayMedium?.copyWith(
+            fontFamily: 'BubblegumSans',
+            color: studyInk,
+          ),
+          displaySmall: base.textTheme.displaySmall?.copyWith(
+            fontFamily: 'BubblegumSans',
+            color: studyInk,
+          ),
+          headlineMedium: base.textTheme.headlineMedium?.copyWith(
+            fontFamily: 'BubblegumSans',
+            color: studyInk,
+          ),
+          titleLarge: base.textTheme.titleLarge?.copyWith(
+            fontFamily: 'BubblegumSans',
+            color: studyInk,
+          ),
+        ),
+      ),
+      home: const MainMenuScreen(),
     );
   }
 }
 
-class MainMenuScreen extends StatefulWidget {
+class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
 
   @override
-  State<MainMenuScreen> createState() => _MainMenuScreenState();
+  Widget build(BuildContext context) {
+    final manager = ProfileManager();
+    return ListenableBuilder(
+      listenable: manager,
+      builder: (context, _) {
+        final profile = manager.currentProfile;
+        return Scaffold(
+          appBar: AppBar(
+            centerTitle: false,
+            title: const Text(
+              'Math Genius!',
+              style: TextStyle(fontFamily: 'BubblegumSans', fontSize: 26),
+            ),
+            actions: [
+              if (profile != null) ...[
+                IconButton(
+                  tooltip: 'My progress',
+                  icon: const Icon(Icons.bar_chart_rounded, color: studyBlue),
+                  onPressed: () => _open(context, const StatsScreen()),
+                ),
+                IconButton(
+                  tooltip: 'Profiles & settings',
+                  icon: const Icon(Icons.settings_rounded, color: studyBlue),
+                  onPressed: () => _open(context, const SettingsScreen()),
+                ),
+              ],
+            ],
+          ),
+          body: profile == null
+              ? const Center(child: CircularProgressIndicator())
+              : StudyPage(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          'Hello, ${profile.name}!',
+                          style: Theme.of(context).textTheme.displaySmall,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _multiplicationCard(context),
+                      const SizedBox(height: 16),
+                      StudyColumns(
+                        first: _operationCard(context, Operation.addition),
+                        second: _operationCard(context, Operation.subtraction),
+                      ),
+                    ],
+                  ),
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _multiplicationCard(BuildContext context) {
+    final settings = ProfileManager().currentProfile!.settings;
+    return Material(
+      color: studyBlue,
+      borderRadius: BorderRadius.circular(28),
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 620;
+          final showSmallTile =
+              !wide &&
+              constraints.maxWidth >= 294 &&
+              MediaQuery.textScalerOf(context).scale(35) <= 42;
+          final heading = Text(
+            'Multiplication',
+            style: Theme.of(context).textTheme.displaySmall
+                ?.copyWith(color: Colors.white, fontSize: wide ? 48 : 35),
+          );
+          final title = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (showSmallTile)
+                Row(
+                  children: [
+                    Expanded(child: heading),
+                    const SizedBox(width: 10),
+                    const ExcludeSemantics(
+                      child: _MathTile('×', 0.13, studyGold, size: 42),
+                    ),
+                  ],
+                )
+              else
+                heading,
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () =>
+                    _open(context, LearnScreen(settings: settings)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: studyBlue,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                icon: const Icon(Icons.grid_on_rounded),
+                label: const Text('Explore times tables'),
+              ),
+              const SizedBox(height: 8),
+              _operationActions(context, Operation.multiplication),
+            ],
+          );
+          return Padding(
+            padding: EdgeInsets.all(wide ? 32 : 20),
+            child: wide
+                ? Row(
+                    children: [
+                      Expanded(flex: 6, child: title),
+                      const SizedBox(width: 24),
+                      const Expanded(flex: 4, child: _MathTiles()),
+                    ],
+                  )
+                : title,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _operationCard(BuildContext context, Operation operation) {
+    return StudyCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: studyTint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: ExcludeSemantics(
+                  child: Text(
+                    operation.glyph,
+                    style: const TextStyle(
+                      color: studyBlue,
+                      fontFamily: 'BubblegumSans',
+                      fontSize: 31,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  operation.name,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _operationActions(context, operation),
+        ],
+      ),
+    );
+  }
+
+  Widget _operationActions(BuildContext context, Operation operation) {
+    final settings = ProfileManager().currentProfile!.settings;
+    final onBlue = operation == Operation.multiplication;
+    return Row(
+      children: [
+        Expanded(
+          child: Semantics(
+            label: 'Practice ${operation.name}',
+            child: FilledButton.tonal(
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                backgroundColor: onBlue ? const Color(0xFF253AA7) : studyTint,
+                foregroundColor: onBlue ? Colors.white : studyInk,
+              ),
+              onPressed: () => _open(
+                context,
+                PracticeScreen(operation: operation, settings: settings),
+              ),
+              child: Text(
+                operation == Operation.multiplication
+                    ? 'Mixed practice'
+                    : 'Practice',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Semantics(
+            label: '${operation.name} quiz',
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: onBlue ? Colors.white : studyBlue,
+                side: BorderSide(color: onBlue ? studyTint : studyOutline),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onPressed: () => _open(
+                context,
+                QuizScreen(operation: operation, settings: settings),
+              ),
+              child: const Text('Quiz'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _open(BuildContext context, Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
 }
 
-class _MainMenuScreenState extends State<MainMenuScreen>
-    with TickerProviderStateMixin {
-  final ProfileManager _profileManager = ProfileManager();
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _profileManager.addListener(_onProfileChanged);
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _profileManager.removeListener(_onProfileChanged);
-    _animationController.dispose();
-    super.dispose();
-  }
-
-  void _onProfileChanged() {
-    setState(() {});
-  }
-
-  void _openSettings() async {
-    await Navigator.push<AppSettings>(
-      context,
-      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-    );
-  }
-
-  void _openStats() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const StatsScreen()),
-    );
-  }
+class _MathTiles extends StatelessWidget {
+  const _MathTiles();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Math Genius! 🌟',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        centerTitle: true,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(30.0),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(
-              'Hello, ${_profileManager.currentProfile?.name ?? ''}!',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.bar_chart_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
-            onPressed: _openStats,
-            tooltip: 'Statistics',
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.settings_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
-            onPressed: _openSettings,
-            tooltip: 'Settings',
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: _profileManager.currentProfile == null
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              )
-            : FadeTransition(
-                opacity: _fadeAnimation,
-                child: ListView(
-                  padding: const EdgeInsets.all(16.0),
-                  children: <Widget>[
-                    const SizedBox(height: 8),
-                    _buildOperationCard(
-                      title: Operation.addition.name,
-                      icon: Icons.add_circle_rounded,
-                      operation: Operation.addition,
-                      modes: [Mode.practice, Mode.quiz],
-                      color: const Color(0xFF4ECDC4),
-                    ),
-                    _buildOperationCard(
-                      title: Operation.subtraction.name,
-                      icon: Icons.remove_circle_rounded,
-                      operation: Operation.subtraction,
-                      modes: [Mode.practice, Mode.quiz],
-                      color: const Color(0xFFFFE66D),
-                    ),
-                    _buildOperationCard(
-                      title: Operation.multiplication.name,
-                      icon: Icons.close_rounded,
-                      operation: Operation.multiplication,
-                      modes: [Mode.learn, Mode.practice, Mode.quiz],
-                      color: const Color(0xFFFF6B6B),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildOperationCard({
-    required String title,
-    required IconData icon,
-    required Operation operation,
-    required List<Mode> modes,
-    required Color color,
-  }) {
-    return Card(
-      elevation: 8,
-      margin: const EdgeInsets.symmetric(vertical: 12.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.white, color.withValues(alpha: 0.1)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
+    return const ExcludeSemantics(
+      child: Center(
+        child: SizedBox(
+          width: 228,
+          height: 158,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Icon(icon, size: 40, color: color),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                ],
+              Positioned(
+                left: 0,
+                top: 41,
+                child: _MathTile('3', -0.17, studyTint),
               ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                alignment: WrapAlignment.center,
-                children: modes.map((mode) {
-                  return _buildModeButton(operation, mode, color);
-                }).toList(),
+              Positioned(
+                left: 76,
+                top: 13,
+                child: _MathTile('×', 0.13, studyGold),
+              ),
+              Positioned(
+                left: 151,
+                top: 51,
+                child: _MathTile('4', -0.12, Colors.white),
               ),
             ],
           ),
@@ -251,74 +341,44 @@ class _MainMenuScreenState extends State<MainMenuScreen>
       ),
     );
   }
+}
 
-  Widget _buildModeButton(Operation operation, Mode mode, Color color) {
-    IconData modeIcon;
-    switch (mode) {
-      case Mode.learn:
-        modeIcon = Icons.school_rounded;
-        break;
-      case Mode.practice:
-        modeIcon = Icons.fitness_center_rounded;
-        break;
-      case Mode.quiz:
-        modeIcon = Icons.quiz_rounded;
-        break;
-    }
+class _MathTile extends StatelessWidget {
+  const _MathTile(this.symbol, this.angle, this.color, {this.size = 72});
 
-    return ElevatedButton.icon(
-      onPressed: () {
-        _navigateToScreen(operation, mode);
-      },
-      icon: Icon(modeIcon, size: 20),
-      label: Text(mode.name),
-      style: ElevatedButton.styleFrom(
-        foregroundColor: Colors.white,
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 4,
-        shadowColor: color.withValues(alpha: 0.4),
-        textStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'BubblegumSans',
+  final String symbol;
+  final double angle;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: angle,
+      child: Container(
+        width: size,
+        height: size + 5,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(size * 0.26),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40242D60),
+              blurRadius: 12,
+              offset: Offset(0, 7),
+            ),
+          ],
         ),
-      ),
-    );
-  }
-
-  void _navigateToScreen(Operation operation, Mode mode) {
-    Widget page;
-    final settings = _profileManager.currentProfile!.settings;
-
-    switch (mode) {
-      case Mode.learn:
-        page = LearnScreen(operation: operation, settings: settings);
-        break;
-      case Mode.practice:
-        page = PracticeScreen(operation: operation, settings: settings);
-        break;
-      case Mode.quiz:
-        page = QuizScreen(operation: operation, settings: settings);
-        break;
-    }
-
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => page,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-          var offsetAnimation = animation.drive(tween);
-          return SlideTransition(position: offsetAnimation, child: child);
-        },
+        alignment: Alignment.center,
+        child: Text(
+          symbol,
+          style: TextStyle(
+            color: studyBlue,
+            fontFamily: 'BubblegumSans',
+            fontSize: size * 0.72,
+            height: 1,
+          ),
+        ),
       ),
     );
   }

@@ -1,12 +1,11 @@
 {
-    "name": "math",
-    "short_name": "math",
+    "name": "Math Genius!",
+    "short_name": "Math Genius!",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F3F5FF",
+    "theme_color": "#F3F5FF",
+    "description": "Explore times tables and practice multiplication, addition, and subtraction.",
     "prefer_related_applications": false,
     "icons": [
         {

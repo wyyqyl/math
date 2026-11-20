@@ -4,11 +4,11 @@ A fun and engaging Flutter application to help practice and improve math skills.
 
 ## Features
 
-*   **Learn:** Learn multiplication tables.
-*   **Practice:** Practice addition, subtraction, and multiplication with immediate feedback.
-*   **Quiz:** Test your skills with timed quizzes.
-*   **Profiles:** Create multiple profiles to track progress for different users.
-*   **Customizable Settings:** Adjust the difficulty by selecting specific multiplication tables, setting number limits for addition and subtraction, and configuring the quiz duration.
+- **Times tables:** Explore tables from 1 to 12 with dot groups and repeated addition, then practice a single table.
+- **Practice:** Try multiplication, addition, or subtraction with immediate feedback. Missed facts come back after a few questions.
+- **Quiz:** Answer 10 questions at your own pace or take a timed challenge. Practice missed facts directly from the results.
+- **Progress:** Track each child's answers on their own profile and revisit facts they missed or used a hint on.
+- **Settings:** Choose tables for mixed rounds, adjust the addition and subtraction number limit, and switch between multiple choice and a number pad. Game sounds can be turned off per profile.
 
 ## Folder Structure
 
@@ -22,6 +22,6 @@ The `lib` folder is organized as follows:
 ## How to Run
 
 1.  Clone this repository.
-2.  Make sure you have the Flutter SDK installed.
+2.  Install Flutter 3.50.1 or a newer stable release.
 3.  Run `flutter pub get` to install the dependencies.
 4.  Run `flutter run` to start the application.

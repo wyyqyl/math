@@ -1,199 +1,116 @@
 import 'dart:math';
+
+import 'package:math/managers/profile_manager.dart';
 import 'package:math/models/operation_model.dart';
 import 'package:math/models/performance_model.dart';
-import 'package:math/managers/profile_manager.dart';
 import 'package:math/models/question_model.dart';
+import 'package:math/models/settings_model.dart';
 
 class QuestionManager {
-  final Operation operation;
-  final List<int> selectedTables;
-  final int additionSubtractionLimit;
-  Map<String, QuestionPerformance> performanceData;
-  final List<String> _possibleQuestions;
-  String? lastQuestionKey;
-
-  QuestionManager._({
-    required this.operation,
-    required this.selectedTables,
-    required this.additionSubtractionLimit,
-    required this.performanceData,
-  }) : _possibleQuestions = _generatePossibleQuestions(
-         operation,
-         selectedTables,
-         additionSubtractionLimit,
-       );
-
-  static Future<QuestionManager> create({
+  QuestionManager({
     required Operation operation,
     required List<int> selectedTables,
     required int additionSubtractionLimit,
-  }) async {
-    final performanceData = await ProfileManager().loadPerformanceData();
-    return QuestionManager._(
-      operation: operation,
-      selectedTables: selectedTables,
-      additionSubtractionLimit: additionSubtractionLimit,
-      performanceData: performanceData,
-    );
-  }
+  }) : _profileName = ProfileManager().currentProfile!.name,
+       _possibleQuestions = _generatePossibleQuestions(
+         operation,
+         selectedTables,
+         additionSubtractionLimit,
+       ),
+       _performance = ProfileManager().loadPerformanceData();
 
-  static String getQuestionKey(Operation operation, int num1, int num2) {
-    return '$num1${operation.symbol}$num2';
-  }
+  final String _profileName;
+  final List<String> _possibleQuestions;
+  final Map<String, QuestionPerformance> _performance;
+  final _random = Random();
+  String? _lastQuestionKey;
 
   static List<String> _generatePossibleQuestions(
     Operation operation,
     List<int> selectedTables,
-    int additionSubtractionLimit,
+    int limit,
   ) {
-    List<String> questions = [];
-    if (operation == Operation.multiplication) {
-      for (int table in selectedTables) {
-        for (int i = 2; i <= 9; i++) {
-          questions.add(getQuestionKey(operation, table, i));
-        }
-      }
-    } else if (operation == Operation.addition) {
-      for (int i = 1; i <= additionSubtractionLimit; i++) {
-        for (int j = 1; j <= additionSubtractionLimit; j++) {
-          questions.add(getQuestionKey(operation, i, j));
-        }
-      }
-    } else {
-      for (int i = 1; i <= additionSubtractionLimit; i++) {
-        for (int j = 1; j <= i; j++) {
-          questions.add(getQuestionKey(operation, i, j));
-        }
-      }
-    }
-    return questions;
+    return [
+      if (operation == Operation.multiplication)
+        for (final table in selectedTables.toSet())
+          for (var factor = 1; factor <= AppSettings.maxTable; factor++)
+            '$table${operation.symbol}$factor'
+      else
+        for (var left = 1; left <= limit; left++)
+          for (
+            var right = 1;
+            right <= (operation == Operation.subtraction ? left : limit);
+            right++
+          )
+            '$left${operation.symbol}$right',
+    ];
   }
 
-  void _recalculatePriorityScores() {
-    double maxAvgTime = 0;
-    for (String qKey in _possibleQuestions) {
-      final q = performanceData[qKey] ?? QuestionPerformance();
-      if (q.appearanceCount > 0) {
-        if (q.averageTime > maxAvgTime) {
-          maxAvgTime = q.averageTime;
-        }
-      }
-    }
-
-    for (String qKey in _possibleQuestions) {
-      final q = performanceData[qKey] ?? QuestionPerformance();
-      if (q.appearanceCount == 0) {
-        q.priorityScore = 1.0;
-      } else {
-        double errorRate = q.errorRate;
-        double normalizedTime = maxAvgTime > 0 ? q.averageTime / maxAvgTime : 0;
-        q.priorityScore = (0.7 * errorRate) + (0.3 * normalizedTime) + 0.01;
-      }
-      performanceData[qKey] = q;
-    }
+  double _weight(String key) {
+    final performance = _performance[key];
+    if (performance == null) return 1;
+    if (performance.needsReview) return 2 + performance.errorRate;
+    return 0.25 + performance.errorRate;
   }
 
-  Question generateQuestion() {
-    if (_possibleQuestions.isEmpty) {
-      throw StateError(
-        'No possible questions to generate. Check settings (e.g., selected tables).',
-      );
-    }
-
-    if (_possibleQuestions.length == 1) {
-      return Question.fromKey(_possibleQuestions.first);
-    }
-
-    _recalculatePriorityScores();
-
-    double totalWeight = 0;
-    Map<String, double> weights = {};
-    List<String> filteredQustions = [..._possibleQuestions]
-      ..remove(lastQuestionKey);
-    for (String qKey in filteredQustions) {
-      double weight = performanceData[qKey]?.priorityScore ?? 1.0;
-      weights[qKey] = weight;
-      totalWeight += weight;
-    }
-
-    final random = Random();
-    double randomWeight = random.nextDouble() * totalWeight;
-    String selectedQuestionKey = filteredQustions.first;
-    for (String qKey in filteredQustions) {
-      if (randomWeight < weights[qKey]!) {
-        selectedQuestionKey = qKey;
+  Question generateQuestion({Set<String> excludeKeys = const {}}) {
+    final available = _possibleQuestions
+        .where((key) => key != _lastQuestionKey && !excludeKeys.contains(key))
+        .toList();
+    if (available.isEmpty) return Question.fromKey(_possibleQuestions.first);
+    final weights = available.map(_weight).toList();
+    var roll = _random.nextDouble() * weights.fold(0.0, (a, b) => a + b);
+    var selected = available.last;
+    for (var index = 0; index < available.length; index++) {
+      roll -= weights[index];
+      if (roll < 0) {
+        selected = available[index];
         break;
       }
-      randomWeight -= weights[qKey]!;
     }
-
-    lastQuestionKey = selectedQuestionKey;
-
-    return Question.fromKey(selectedQuestionKey);
+    return questionForKey(selected);
   }
 
-  List<Question> generateUniqueQuestions(
-    int count, {
-    List<String> excludeKeys = const [],
-  }) {
-    _recalculatePriorityScores();
+  Question questionForKey(String key) {
+    _lastQuestionKey = key;
+    return Question.fromKey(key);
+  }
 
-    final availableQuestions = _possibleQuestions
-        .where((qKey) => !excludeKeys.contains(qKey))
-        .toList();
-
-    // Sort available questions by priority score, descending.
-    // Questions the user knows least will be at the beginning.
-    availableQuestions.sort((a, b) {
-      final scoreA = performanceData[a]?.priorityScore ?? 1.0;
-      final scoreB = performanceData[b]?.priorityScore ?? 1.0;
-      return scoreB.compareTo(scoreA);
-    });
-
-    List<String> selectedQuestionKeys = [];
-
-    if (availableQuestions.isEmpty) {
-      return [];
-    }
-
-    if (count > availableQuestions.length) {
-      // If more questions are requested than available, add all available questions.
-      selectedQuestionKeys.addAll(availableQuestions);
-
-      // For the remainder, cycle through the sorted list from the beginning.
-      final int remaining = count - availableQuestions.length;
-      for (int i = 0; i < remaining; i++) {
-        selectedQuestionKeys.add(
-          availableQuestions[i % availableQuestions.length],
-        );
+  List<Question> generateUniqueQuestions(int count) {
+    final available = [..._possibleQuestions]..shuffle(_random);
+    final review = <String>[];
+    final unseen = <String>[];
+    final familiar = <String>[];
+    for (final key in available) {
+      final performance = _performance[key];
+      if (performance == null) {
+        unseen.add(key);
+      } else if (performance.needsReview) {
+        review.add(key);
+      } else {
+        familiar.add(key);
       }
-    } else {
-      // Take the top 'count' questions that the user knows least.
-      selectedQuestionKeys = availableQuestions.sublist(0, count);
     }
-
-    // Shuffle the final list to ensure random order.
-    selectedQuestionKeys.shuffle();
-
-    // Create Question objects from the selected keys.
-    return selectedQuestionKeys.map((key) => Question.fromKey(key)).toList();
+    final selected = [...review, ...unseen, ...familiar].take(count).toList()
+      ..shuffle(_random);
+    return selected.map(Question.fromKey).toList();
   }
 
-  Future<void> updateQuestionPerformance({
-    required String questionKey,
-    required bool isCorrect,
-    required double timeTaken,
-  }) async {
-    QuestionPerformance performance =
-        performanceData[questionKey] ?? QuestionPerformance();
-
-    performance.appearanceCount++;
-    performance.totalTimeSpent += timeTaken;
-    if (!isCorrect) {
-      performance.timesIncorrect++;
-    }
-
-    performanceData[questionKey] = performance;
-    await ProfileManager().savePerformanceData(performanceData);
+  Future<void> recordAnswer(
+    Question question,
+    bool isCorrect,
+    double timeTaken, {
+    bool usedHint = false,
+  }) {
+    _performance
+        .putIfAbsent(question.questionKey, QuestionPerformance.new)
+        .recordAnswer(isCorrect, timeTaken, usedHint: usedHint);
+    return ProfileManager().recordAnswer(
+      profileName: _profileName,
+      questionKey: question.questionKey,
+      isCorrect: isCorrect,
+      timeTaken: timeTaken,
+      usedHint: usedHint,
+    );
   }
 }

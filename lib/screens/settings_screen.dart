@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:math/managers/profile_manager.dart';
 import 'package:math/models/settings_model.dart';
+
+import 'widgets/study_layout.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -10,224 +12,185 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final ProfileManager _profileManager = ProfileManager();
-  late List<int> _selectedTables;
-  late int _quizDuration;
-  late int _additionSubtractionLimit;
-  late String _currentProfileName;
-  late bool _advancedMode;
+  final _profiles = ProfileManager();
+  late Set<int> _tables;
+  late int _duration;
+  late int _limit;
+  late bool _advanced;
+  late bool _sound;
+  bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSettingsFromProfile();
-    _profileManager.addListener(_onProfileChanged);
+    _loadSettings();
   }
 
-  void _toggleTable(int tableNumber) {
-    setState(() {
-      if (_selectedTables.contains(tableNumber)) {
-        _selectedTables.remove(tableNumber);
-      } else {
-        _selectedTables.add(tableNumber);
-      }
-    });
+  void _loadSettings() {
+    final settings = _profiles.currentProfile!.settings;
+    _tables = settings.selectedTables.toSet();
+    _duration = settings.quizDuration;
+    _limit = settings.additionSubtractionLimit;
+    _advanced = settings.advancedMode;
+    _sound = settings.soundEnabled;
   }
 
-  void _selectAll() {
-    setState(() {
-      _selectedTables = [2, 3, 4, 5, 6, 7, 8, 9];
-    });
+  Future<void> _save() {
+    return _profiles.updateProfileSettings(
+      _profiles.currentProfile!.name,
+      AppSettings(
+        selectedTables: _tables.toList()..sort(),
+        quizDuration: _duration,
+        additionSubtractionLimit: _limit,
+        advancedMode: _advanced,
+        soundEnabled: _sound,
+      ),
+    );
   }
 
-  void _clearAll() {
-    setState(() {
-      _selectedTables = [];
-    });
-  }
-
-  void _loadSettingsFromProfile() {
-    final profile = _profileManager.currentProfile;
-    if (profile != null) {
-      setState(() {
-        _selectedTables = List.from(profile.settings.selectedTables);
-        _quizDuration = profile.settings.quizDuration;
-        _additionSubtractionLimit = profile.settings.additionSubtractionLimit;
-        _currentProfileName = profile.name;
-        _advancedMode = profile.settings.advancedMode;
-      });
+  Future<void> _updateProfiles(Future<void> Function() change) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _save();
+      await change();
+      if (mounted) setState(_loadSettings);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save the change. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  void _onProfileChanged() {
-    _loadSettingsFromProfile();
-  }
-
-  @override
-  void dispose() {
-    _profileManager.removeListener(_onProfileChanged);
-    super.dispose();
-  }
-
-  Future<bool> _saveCurrentSettings() async {
-    if (_selectedTables.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Please select at least one table before saving.',
-            ),
-            backgroundColor: const Color(0xFFFF6B6B),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      }
-      return false;
+  Future<void> _saveAndClose() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _save();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save settings. Please try again.'),
+        ),
+      );
     }
-    final newSettings = AppSettings(
-      selectedTables: _selectedTables,
-      quizDuration: _quizDuration,
-      additionSubtractionLimit: _additionSubtractionLimit,
-      advancedMode: _advancedMode,
-    );
-    await _profileManager.updateProfileSettings(
-      _currentProfileName,
-      newSettings,
-    );
-    return true;
   }
 
-  Future<void> _showProfileDialog({String? existingName}) async {
-    final nameController = TextEditingController(text: existingName);
-    final formKey = GlobalKey<FormState>();
-
-    return showDialog<void>(
+  Future<void> _editProfile({String? oldName}) async {
+    final form = GlobalKey<FormState>();
+    var name = oldName ?? '';
+    final editedName = await showDialog<String>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+      builder: (context) => AlertDialog(
+        title: Text(oldName == null ? 'Add profile' : 'Rename profile'),
+        content: Form(
+          key: form,
+          child: TextFormField(
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            initialValue: oldName,
+            decoration: const InputDecoration(labelText: 'Name'),
+            onChanged: (value) => name = value.trim(),
+            validator: (_) {
+              if (name.isEmpty) return 'Enter a name';
+              if (_profiles.profileNames.any(
+                (other) =>
+                    other != oldName &&
+                    other.toLowerCase() == name.toLowerCase(),
+              )) {
+                return 'That name is already in use';
+              }
+              return null;
+            },
           ),
-          title: Text(existingName == null ? 'Add Profile' : 'Rename Profile'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: nameController,
-              decoration: InputDecoration(
-                hintText: "Profile Name",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF667eea),
-                    width: 2,
-                  ),
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Name cannot be empty';
-                }
-                if (_profileManager.profileNames.any(
-                  (p) =>
-                      p.toLowerCase() == value.trim().toLowerCase() &&
-                      p.toLowerCase() != existingName?.toLowerCase(),
-                )) {
-                  return 'Name already exists';
-                }
-                return null;
-              },
-            ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF667eea),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-              child: Text(existingName == null ? 'Add' : 'Rename'),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final newName = nameController.text.trim();
-                  try {
-                    if (existingName != null) {
-                      await _profileManager.renameProfile(
-                        existingName,
-                        newName,
-                      );
-                    } else {
-                      await _profileManager.createProfile(
-                        newName,
-                        makeActive: true,
-                      );
-                    }
-                    if (context.mounted) Navigator.of(context).pop();
-                  } catch (e) {
-                    // Error is already handled by validator
-                  }
-                }
-              },
-            ),
-          ],
-        );
-      },
+          FilledButton(
+            onPressed: () {
+              if (form.currentState!.validate()) {
+                Navigator.of(context).pop(name);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
+    if (!mounted || editedName == null || editedName == oldName) return;
+    await _updateProfiles(
+      () => oldName == null
+          ? _profiles.createProfile(editedName, makeActive: true)
+          : _profiles.renameProfile(oldName, editedName),
+    );
+  }
+
+  Future<void> _deleteProfile(String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $name?'),
+        content: const Text(
+          'This will delete this profile’s settings and math progress.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete profile'),
+          ),
+        ],
+      ),
+    );
+    if (mounted && confirmed == true) {
+      await _updateProfiles(() => _profiles.deleteProfile(name));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) async {
-        if (didPop) return;
-        final bool canPop = await _saveCurrentSettings();
-        if (canPop && context.mounted) Navigator.of(context).pop();
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _saveAndClose();
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Settings'),
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+          title: const Text('Profiles & settings'),
+          actions: [
+            TextButton(
+              onPressed: _busy ? null : _saveAndClose,
+              child: const Text('Save'),
             ),
-          ),
-          elevation: 0,
+            const SizedBox(width: 8),
+          ],
         ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFf093fb), Color(0xFFf5576c)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-          child: SingleChildScrollView(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 600) {
-                  return _buildWideLayout();
-                } else {
-                  return _buildNarrowLayout();
-                }
-              },
+        body: StudyPage(
+          child: IgnorePointer(
+            ignoring: _busy,
+            child: StudyColumns(
+              first: Column(
+                children: [
+                  _profileCard(context),
+                  const SizedBox(height: 12),
+                  _tableCard(context),
+                ],
+              ),
+              second: _practiceSettings(context),
             ),
           ),
         ),
@@ -235,516 +198,165 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildNarrowLayout() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+  Widget _profileCard(BuildContext context) {
+    return StudyCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildProfileCard(),
-          const SizedBox(height: 20),
-          _buildTablesCard(),
-          const SizedBox(height: 20),
-          _buildAdditionSubtractionCard(),
-          const SizedBox(height: 20),
-          _buildQuizSettingsCard(),
-          const SizedBox(height: 20),
+          Text('Profiles', style: Theme.of(context).textTheme.titleLarge),
+          for (final name in _profiles.profileNames)
+            ListTile(
+              minTileHeight: 56,
+              contentPadding: EdgeInsets.zero,
+              selected: name == _profiles.currentProfile!.name,
+              leading: Icon(
+                name == _profiles.currentProfile!.name
+                    ? Icons.check_circle
+                    : Icons.account_circle_outlined,
+              ),
+              title: Text(name),
+              onTap: name == _profiles.currentProfile!.name
+                  ? null
+                  : () => _updateProfiles(() => _profiles.switchProfile(name)),
+              trailing: PopupMenuButton<String>(
+                tooltip: 'Manage $name',
+                onSelected: (action) {
+                  if (action == 'rename') {
+                    _editProfile(oldName: name);
+                  } else {
+                    _deleteProfile(name);
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'rename', child: Text('Rename')),
+                  if (_profiles.profileNames.length > 1)
+                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _editProfile,
+            icon: const Icon(Icons.person_add_alt_1),
+            label: const Text('Add profile'),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildWideLayout() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Row(
+  Widget _tableCard(BuildContext context) {
+    return StudyCard(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                _buildProfileCard(),
-                const SizedBox(height: 20),
-                _buildTablesCard(),
-              ],
-            ),
+          Text(
+            'Mixed multiplication',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(width: 24),
-          Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                _buildQuizSettingsCard(),
-                const SizedBox(height: 20),
-                _buildAdditionSubtractionCard(),
-              ],
-            ),
+          const Text('Choose tables for mixed practice and quizzes.'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var table = 1; table <= AppSettings.maxTable; table++)
+                Semantics(
+                  selected: _tables.contains(table),
+                  label: '$table times table',
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(52, 52),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      backgroundColor: _tables.contains(table)
+                          ? studyTint
+                          : Colors.white,
+                    ),
+                    onPressed: () => setState(() {
+                      if (!_tables.contains(table)) {
+                        _tables.add(table);
+                      } else if (_tables.length > 1) {
+                        _tables.remove(table);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Keep at least one table selected.'),
+                          ),
+                        );
+                      }
+                    }),
+                    child: Text('$table'),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => setState(() {
+                  _tables = {for (var i = 1; i <= AppSettings.maxTable; i++) i};
+                }),
+                child: const Text('Select all'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    setState(() => _tables = AppSettings.defaultTables.toSet()),
+                child: const Text('Reset to 2–9'),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileCard() {
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.white,
-              const Color(0xFF667eea).withValues(alpha: 0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _practiceSettings(BuildContext context) {
+    return StudyCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Practice & quizzes',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.person_rounded,
-                        color: Color(0xFF667eea),
-                        size: 28,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Profiles',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF667eea),
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_rounded),
-                    color: const Color(0xFF667eea),
-                    iconSize: 32,
-                    onPressed: () => _showProfileDialog(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ..._profileManager.profileNames.map(
-                (name) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: ListTile(
-                    title: Text(
-                      name,
-                      style: TextStyle(
-                        fontWeight: name == _currentProfileName
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 18,
-                      ),
-                    ),
-                    leading: Icon(
-                      name == _currentProfileName
-                          ? Icons.check_circle_rounded
-                          : Icons.radio_button_unchecked_rounded,
-                      color: const Color(0xFF667eea),
-                      size: 28,
-                    ),
-                    onTap: () async {
-                      if (name != _currentProfileName) {
-                        if (await _saveCurrentSettings()) {
-                          _profileManager.switchProfile(name);
-                        }
-                      }
-                    },
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_rounded),
-                          color: const Color(0xFF667eea),
-                          onPressed: () =>
-                              _showProfileDialog(existingName: name),
-                        ),
-                        if (_profileManager.profileNames.length > 1)
-                          IconButton(
-                            icon: const Icon(Icons.delete_rounded),
-                            color: const Color(0xFFFF6B6B),
-                            onPressed: () async {
-                              await _profileManager.deleteProfile(name);
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Text('Addition and subtraction number limit · $_limit'),
+          Slider(
+            value: _limit.toDouble(),
+            min: 10,
+            max: 100,
+            divisions: 9,
+            label: '$_limit',
+            semanticFormatterCallback: (value) => '${value.round()} maximum',
+            onChanged: (value) => setState(() => _limit = value.round()),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTablesCard() {
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.white,
-              const Color(0xFF4ECDC4).withValues(alpha: 0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          Text('Timed quiz length · $_duration seconds'),
+          Slider(
+            value: _duration.toDouble(),
+            min: 15,
+            max: 120,
+            divisions: 7,
+            label: '$_duration seconds',
+            semanticFormatterCallback: (value) => '${value.round()} seconds',
+            onChanged: (value) => setState(() => _duration = value.round()),
           ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.calculate_rounded,
-                    color: Color(0xFF4ECDC4),
-                    size: 28,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Multiplication Tables',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4ECDC4),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 10.0,
-                runSpacing: 10.0,
-                children: List<Widget>.generate(8, (index) {
-                  final tableNumber = index + 2;
-                  final isSelected = _selectedTables.contains(tableNumber);
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    child: ChoiceChip(
-                      label: Text(
-                        '$tableNumber',
-                        style: TextStyle(
-                          fontSize: 22.0,
-                          fontWeight: FontWeight.bold,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF4ECDC4),
-                        ),
-                      ),
-                      selected: isSelected,
-                      onSelected: (bool selected) {
-                        _toggleTable(tableNumber);
-                      },
-                      backgroundColor: Colors.white,
-                      selectedColor: const Color(0xFF4ECDC4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15.0),
-                      ),
-                      elevation: isSelected ? 4 : 2,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: _selectAll,
-                    icon: const Icon(Icons.done_all_rounded),
-                    label: const Text('Select All'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4ECDC4),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _clearAll,
-                    icon: const Icon(Icons.clear_all_rounded),
-                    label: const Text('Clear All'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6B6B),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          const Divider(),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Type answers'),
+            subtitle: const Text('Use a number pad for practice and quizzes.'),
+            value: _advanced,
+            onChanged: (value) => setState(() => _advanced = value),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdditionSubtractionCard() {
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.white,
-              const Color(0xFFFFE66D).withValues(alpha: 0.2),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Game sounds'),
+            value: _sound,
+            onChanged: (value) => setState(() => _sound = value),
           ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.exposure_rounded,
-                    color: Color(0xFFFFE66D),
-                    size: 28,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Addition & Subtraction',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFFE66D),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Number Limit',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFE66D),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      '≤ $_additionSubtractionLimit',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SliderTheme(
-                data: SliderThemeData(
-                  activeTrackColor: const Color(0xFFFFE66D),
-                  inactiveTrackColor: const Color(
-                    0xFFFFE66D,
-                  ).withValues(alpha: 0.3),
-                  thumbColor: const Color(0xFFFFE66D),
-                  overlayColor: const Color(0xFFFFE66D).withValues(alpha: 0.2),
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 12,
-                  ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 24,
-                  ),
-                ),
-                child: Slider(
-                  value: _additionSubtractionLimit.toDouble(),
-                  min: 10,
-                  max: 100,
-                  divisions: 9,
-                  label: _additionSubtractionLimit.round().toString(),
-                  onChanged: (double value) {
-                    setState(() {
-                      _additionSubtractionLimit = value.round();
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuizSettingsCard() {
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.white,
-              const Color(0xFFFF6B6B).withValues(alpha: 0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.quiz_rounded, color: Color(0xFFFF6B6B), size: 28),
-                  SizedBox(width: 8),
-                  Text(
-                    'Quiz Settings',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFF6B6B),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Duration',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF6B6B),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      '${_quizDuration.round()} sec',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SliderTheme(
-                data: SliderThemeData(
-                  activeTrackColor: const Color(0xFFFF6B6B),
-                  inactiveTrackColor: const Color(
-                    0xFFFF6B6B,
-                  ).withValues(alpha: 0.3),
-                  thumbColor: const Color(0xFFFF6B6B),
-                  overlayColor: const Color(0xFFFF6B6B).withValues(alpha: 0.2),
-                  thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 12,
-                  ),
-                  overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 24,
-                  ),
-                ),
-                child: Slider(
-                  value: _quizDuration.toDouble(),
-                  min: 15,
-                  max: 120,
-                  divisions: 7,
-                  label: _quizDuration.round().toString(),
-                  onChanged: (double value) {
-                    setState(() {
-                      _quizDuration = value.round();
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Advanced Mode',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Use numeric keypad',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  Switch(
-                    value: _advancedMode,
-                    onChanged: (value) => setState(() => _advancedMode = value),
-                    activeTrackColor: const Color(0xFFFF6B6B),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

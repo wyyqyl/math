@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:math/models/operation_model.dart';
 
 class Question {
@@ -18,56 +17,46 @@ class Question {
     required this.questionKey,
   });
 
+  String get expression => '$num1 ${operation.glyph} $num2';
+  String get equation => '$expression = $correctAnswer';
+
   factory Question.fromKey(String key) {
-    Operation? operation;
-    String? symbol;
+    final operation = Operation.values.firstWhere(
+      (op) => key.contains(op.symbol),
+    );
+    final parts = key.split(operation.symbol);
+    final n1 = int.parse(parts[0]);
+    final n2 = int.parse(parts[1]);
+    final answer = switch (operation) {
+      Operation.addition => n1 + n2,
+      Operation.subtraction => n1 - n2,
+      Operation.multiplication => n1 * n2,
+    };
 
-    for (var op in Operation.values) {
-      if (key.contains(op.symbol)) {
-        operation = op;
-        symbol = op.symbol;
-        break;
-      }
+    final nearby = [
+      if (operation == Operation.multiplication) ...[
+        n1 * (n2 - 1),
+        n1 * (n2 + 1),
+        (n1 - 1) * n2,
+        (n1 + 1) * n2,
+      ] else
+        for (var offset = 1; offset <= 5; offset++) ...[
+          answer - offset,
+          answer + offset,
+        ],
+    ].where((option) => option >= 0 && option != answer).toList()..shuffle();
+
+    final options = {answer};
+    options.addAll(nearby.toSet().take(3));
+    for (var offset = 1; options.length < 4; offset++) {
+      options.add(answer + offset);
     }
-
-    if (operation == null || symbol == null) {
-      throw Exception('Invalid question key: $key');
-    }
-
-    final parts = key.split(symbol);
-    int n1 = int.parse(parts[0]);
-    int n2 = int.parse(parts[1]);
-
-    int correctAnswer;
-    switch (operation) {
-      case Operation.addition:
-        correctAnswer = n1 + n2;
-        break;
-      case Operation.subtraction:
-        correctAnswer = n1 - n2;
-        break;
-      case Operation.multiplication:
-        correctAnswer = n1 * n2;
-        break;
-    }
-
-    final options = {correctAnswer}.toList();
-    final random = Random();
-    while (options.length < 4) {
-      int wrongOption = correctAnswer + random.nextInt(19) - 9;
-      if (wrongOption != correctAnswer &&
-          !options.contains(wrongOption) &&
-          wrongOption >= 0) {
-        options.add(wrongOption);
-      }
-    }
-    options.shuffle();
 
     return Question(
       num1: n1,
       num2: n2,
-      correctAnswer: correctAnswer,
-      options: options,
+      correctAnswer: answer,
+      options: options.toList()..shuffle(),
       operation: operation,
       questionKey: key,
     );

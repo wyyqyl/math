@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:math/models/performance_model.dart';
 import 'package:math/models/profile_model.dart';
@@ -17,7 +18,7 @@ class ProfileManager extends ChangeNotifier {
 
   Profile? _currentProfile;
 
-  List<String> get profileNames => _profileNames;
+  List<String> get profileNames => List.unmodifiable(_profileNames);
   Profile? get currentProfile => _currentProfile;
 
   Future<void> initialize() async {
@@ -27,8 +28,10 @@ class ProfileManager extends ChangeNotifier {
     if (_profileNames.isEmpty) {
       await createProfile('Default', makeActive: true);
     } else {
-      _currentProfileName =
-          _prefs.getString('active_profile') ?? _profileNames.first;
+      final active = _prefs.getString('active_profile');
+      _currentProfileName = _profileNames.contains(active)
+          ? active!
+          : _profileNames.first;
       await _loadProfile(_currentProfileName);
     }
   }
@@ -38,15 +41,24 @@ class ProfileManager extends ChangeNotifier {
     final duration = _prefs.getInt('profile_${name}_quizDuration');
     final limit = _prefs.getInt('profile_${name}_additionSubtractionLimit');
     final advanced = _prefs.getBool('profile_${name}_advancedMode');
+    final sound = _prefs.getBool('profile_${name}_soundEnabled');
+    final validTables = tables
+        ?.map(int.tryParse)
+        .whereType<int>()
+        .where((table) => table >= 1 && table <= AppSettings.maxTable)
+        .toSet()
+        .toList();
 
     _currentProfile = Profile(
       name: name,
       settings: AppSettings(
-        selectedTables:
-            tables?.map(int.parse).toList() ?? [2, 3, 4, 5, 6, 7, 8, 9],
-        quizDuration: duration ?? 60,
-        additionSubtractionLimit: limit ?? 10,
+        selectedTables: validTables == null || validTables.isEmpty
+            ? AppSettings.defaultTables
+            : List.unmodifiable(validTables),
+        quizDuration: (duration ?? 60).clamp(15, 120),
+        additionSubtractionLimit: (limit ?? 10).clamp(10, 100),
         advancedMode: advanced ?? false,
+        soundEnabled: sound ?? true,
       ),
     );
     _currentProfileName = name;
@@ -62,8 +74,8 @@ class ProfileManager extends ChangeNotifier {
     await _prefs.setStringList('profile_list', _profileNames);
 
     // Save default settings for the new profile
-    final defaultSettings = AppSettings(
-      selectedTables: [2, 3, 4, 5, 6, 7, 8, 9],
+    const defaultSettings = AppSettings(
+      selectedTables: AppSettings.defaultTables,
       quizDuration: 60,
       additionSubtractionLimit: 10,
       advancedMode: false,
@@ -94,6 +106,7 @@ class ProfileManager extends ChangeNotifier {
     await _prefs.remove('profile_${name}_quizDuration');
     await _prefs.remove('profile_${name}_additionSubtractionLimit');
     await _prefs.remove('profile_${name}_advancedMode');
+    await _prefs.remove('profile_${name}_soundEnabled');
     await _prefs.remove('profile_${name}_performanceData');
 
     if (_currentProfileName == name) {
@@ -113,6 +126,7 @@ class ProfileManager extends ChangeNotifier {
     final duration = _prefs.getInt('profile_${oldName}_quizDuration');
     final limit = _prefs.getInt('profile_${oldName}_additionSubtractionLimit');
     final advanced = _prefs.getBool('profile_${oldName}_advancedMode');
+    final sound = _prefs.getBool('profile_${oldName}_soundEnabled');
     final performance = _prefs.getString('profile_${oldName}_performanceData');
 
     if (tables != null) {
@@ -127,6 +141,9 @@ class ProfileManager extends ChangeNotifier {
     if (advanced != null) {
       await _prefs.setBool('profile_${newName}_advancedMode', advanced);
     }
+    if (sound != null) {
+      await _prefs.setBool('profile_${newName}_soundEnabled', sound);
+    }
     if (performance != null) {
       await _prefs.setString('profile_${newName}_performanceData', performance);
     }
@@ -136,6 +153,7 @@ class ProfileManager extends ChangeNotifier {
     await _prefs.remove('profile_${oldName}_quizDuration');
     await _prefs.remove('profile_${oldName}_additionSubtractionLimit');
     await _prefs.remove('profile_${oldName}_advancedMode');
+    await _prefs.remove('profile_${oldName}_soundEnabled');
     await _prefs.remove('profile_${oldName}_performanceData');
 
     _profileNames[index] = newName;
@@ -159,37 +177,36 @@ class ProfileManager extends ChangeNotifier {
       settings.additionSubtractionLimit,
     );
     await _prefs.setBool('profile_${name}_advancedMode', settings.advancedMode);
+    await _prefs.setBool('profile_${name}_soundEnabled', settings.soundEnabled);
     if (_currentProfileName == name) {
       await _loadProfile(name);
     }
   }
 
-  String getPerformanceKey() {
-    return 'profile_${_currentProfileName}_performanceData';
-  }
-
-  Future<Map<String, QuestionPerformance>> loadPerformanceData() async {
-    final performanceKey = getPerformanceKey();
-    final jsonString = _prefs.getString(performanceKey);
-    if (jsonString == null) {
-      return {};
-    }
-    final Map<String, dynamic> jsonMap = json.decode(jsonString);
-    return jsonMap.map((key, value) {
+  Map<String, QuestionPerformance> loadPerformanceData({String? profileName}) {
+    final name = profileName ?? _currentProfileName;
+    final jsonString = _prefs.getString('profile_${name}_performanceData');
+    if (jsonString == null) return {};
+    final data = json.decode(jsonString) as Map<String, dynamic>;
+    return data.map((key, value) {
       return MapEntry(key, QuestionPerformance.fromJson(value));
     });
   }
 
-  Future<void> savePerformanceData(
-    Map<String, QuestionPerformance> performanceData,
-  ) async {
-    final performanceKey = getPerformanceKey();
-    final Map<String, QuestionPerformance> filteredData = Map.from(
-      performanceData,
-    )..removeWhere((key, value) => value.appearanceCount == 0);
-    final jsonMap = filteredData.map((key, value) {
-      return MapEntry(key, value.toJson());
-    });
-    await _prefs.setString(performanceKey, json.encode(jsonMap));
+  Future<void> recordAnswer({
+    required String profileName,
+    required String questionKey,
+    required bool isCorrect,
+    required double timeTaken,
+    required bool usedHint,
+  }) async {
+    // Merge with the current cache so another session cannot overwrite newer answers.
+    final data = loadPerformanceData(profileName: profileName);
+    final performance = data.putIfAbsent(questionKey, QuestionPerformance.new);
+    performance.recordAnswer(isCorrect, timeTaken, usedHint: usedHint);
+    await _prefs.setString(
+      'profile_${profileName}_performanceData',
+      json.encode(data),
+    );
   }
 }
